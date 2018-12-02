@@ -1,3 +1,9 @@
+// Raby-Pepin, David & Wang, XiaoQian
+// 07-12-2018
+// Description
+
+////////////////////////////////////////////////////////////////////////////////
+
 'use strict';
 
 var http = require("http");
@@ -118,10 +124,63 @@ var MILLIS_PAR_JOUR = (24 * 60 * 60 * 1000);
 // sondage demandé.
 //
 // Doit retourner false si le calendrier demandé n'existe pas
+// ******DAVID 12/01- EN DEVELOPPEMENT******
 var getCalendar = function (sondageId) {
-    // TODO
-    return 'Calendrier <b>' + sondageId + '</b> (TODO)';
+    var codeHTML = readFile("template/calendar.html");
+    codeHTML = remplacerTexte("INSERER LE TITRE", "{{titre}}", codeHTML);
+    codeHTML = remplacerTexte("INSERER LA FONCTION TABLE LORSQUE TERMINEE", "{{table}}", codeHTML);
+    codeHTML = remplacerTexte("INSERER LE URL", "{{url}}", codeHTML);
+    return codeHTML;
 };
+
+
+// fonction qui construit des balises HTML a partir des entrees, soit le nom
+// de la balise, le code du style et le code contenu dans la balise
+// ******DAVID 12/01- TERMINEE******
+var balise = function(nom, style, contenu) {
+    return "<" + nom + " " + style +">" + contenu + "</" + nom + ">";
+};
+
+
+// fonction qui prend une chaine de caracteres et la formate en code HTML
+// qui indique le style d'une balise
+// ******DAVID 12/01 - TERMINEE******
+var style = function(contenu) {
+  return "style=\"" + contenu + "\"";
+};
+
+
+// ******DAVID 12/01- EN DEVELOPPEMENT******
+var table = function(tabDates, tabHeures) {
+    
+    // le style des cases est definit
+    var styleA = style("EXEMPLE");
+
+    // EXEMPLE DE TABLE A DEVELOPPER
+    return balise("table", "", mat.map(function(ligne, indiceLigne) {
+        if (indiceLigne & 1) {
+            return balise("tr", "", ligne.map(function(cellule, indice) {
+                if (indice & 1) {
+                    return balise("td", styleA, cellule);
+                } else { return balise("td", styleB, cellule);}
+            }).join(""))
+        } else {
+            return balise("tr", "", ligne.map(function(cellule, indice) {
+                if (indice & 1) {
+                    return balise("td", styleB, cellule);
+                } else { return balise("td", styleA, cellule);}
+            }).join(""))
+        }
+    }).join(""))
+};
+
+
+// Fonction qui remplace un element dans un texte par un nouvel element
+// ******DAVID 12/01- TERMINEE******
+var remplacerTexte = function(nouvContenu, contenuARemplacer, texte) {
+    return texte.split(contenuARemplacer).join(nouvContenu);
+};
+
 
 // Retourne le texte HTML à afficher à l'utilisateur pour voir les
 // résultats du sondage demandé
@@ -136,8 +195,34 @@ var getResults = function (sondageId) {
 //
 // Doit retourner false si les informations ne sont pas valides, ou
 // true si le sondage a été créé correctement.
-var creerSondage = function(titre, id, dateDebut, dateFin, heureDebut, heureFin) {
-    // TODO
+// ******DAVID 12/01 - TERMINEE******
+var creerSondage = function (titre, id, dateDebut, dateFin, heureDebut, heureFin) {
+    
+    // le site https://www.w3schools.com/jsref/jsref_gettime.asp est la
+    // reference pour l'usage de la fonction Date() et de la methode .getTime() 
+    var dateDebutNum = +new Date(dateDebut).getTime() / MILLIS_PAR_JOUR;
+    var dateFinNum = +new Date(dateFin).getTime() / MILLIS_PAR_JOUR;
+    var heuresValides = +heureDebut <= +heureFin;
+    var datesValides = dateDebutNum <= dateFinNum;
+    var maxJours =  (dateFinNum-dateDebutNum) <= 30;
+
+    if (idValide(id) && heuresValides && datesValides && maxJours) {
+        return true;
+    }
+    return false;
+};
+
+//Fonction qui verifie que l'identifiant entre par l'utilisateur est bien valide
+// ******DAVID 12/01 - TERMINEE******
+var idValide = function (id) {
+    for (var i=0; i<id.length; i++) {
+        if (!(id.charCodeAt(i)==45
+              || (id.charCodeAt(i)>47 && id.charCodeAt(i)<58)
+              || (id.charCodeAt(i)>64 && id.charCodeAt(i)<91)
+              || (id.charCodeAt(i)>96 && id.charCodeAt(i)<123))) {
+                  return false;
+        }
+    }
     return true;
 };
 
@@ -146,7 +231,7 @@ var creerSondage = function(titre, id, dateDebut, dateFin, heureDebut, heureFin)
 // fourni par la fonction compacterDisponibilites() de public/calendar.js
 //
 // Cette fonction ne retourne rien
-var ajouterParticipant = function(sondageId, nom, disponibilites) {
+var ajouterParticipant = function (sondageId, nom, disponibilites) {
     // TODO
 };
 
