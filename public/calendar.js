@@ -1,8 +1,16 @@
+// Raby-Pepin, David & Wang, XiaoQian
+// 07-12-2018
+// Description
+
+////////////////////////////////////////////////////////////////////////////////
+
 'use strict';
 
 document.addEventListener('DOMContentLoaded', function() {
     // TODO: Ajoutez ici du code qui doit s'exécuter au chargement de
     // la page
+    //****DAVID TEST****
+    //document.getElementById("partager").innerHTML = "OOO";
 });
 
 function onClick(event) {
