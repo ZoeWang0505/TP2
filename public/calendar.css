@@ -20,6 +20,12 @@ td {
     text-align: center;
     color: green;
 }
+
+.tdlabel {
+    background-color: #fff;
+    text-align: center;
+    color: black;
+}
 #partager {
     margin-top: 30px;
     font-style: italic;

@@ -8,6 +8,7 @@
 
 var http = require("http");
 var fs = require('fs');
+
 var urlParse = require('url').parse;
 var pathParse = require('path').parse;
 var querystring = require('querystring');
@@ -126,54 +127,127 @@ var MILLIS_PAR_JOUR = (24 * 60 * 60 * 1000);
 // Doit retourner false si le calendrier demandé n'existe pas
 // ******DAVID 12/01- EN DEVELOPPEMENT******
 var getCalendar = function (sondageId) {
+    var sondage = getSondage(sondageId);
+    if(sondage == null)
+        return; //TO return error
     var codeHTML = readFile("template/calendar.html");
-    codeHTML = remplacerTexte("INSERER LE TITRE", "{{titre}}", codeHTML);
-    codeHTML = remplacerTexte("INSERER LA FONCTION TABLE LORSQUE TERMINEE", "{{table}}", codeHTML);
+
+    codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
+    initializeCalendarTable(sondage.data);
+
+    codeHTML = remplacerTexte( createCalendarTable(), "{{table}}", codeHTML);
     codeHTML = remplacerTexte("INSERER LE URL", "{{url}}", codeHTML);
     return codeHTML;
 };
 
+var jourListe = [];
+var tempsListe = []; 
+var mapdeTempsBlocs = [];
+
+var initializeCalendarTable = function(data){
+    initializeJourListe(data.dateDebut, data.dateFin);
+    initializeTempsListe(data.heureDebut, data.heureFin);
+    mapdeTempsBlocs = [];
+    for(var i = -1; i < tempsListe.length; i ++){
+        var rang = [];
+        for(var j = -1; j < jourListe.length; j ++){
+            if( i == -1 && j != -1){
+                rang.push({"jourLable": getJourLable(j)});
+            } else if(j == -1 && i != -1){
+                rang.push({"tempsLable": getTimeLable(i)});
+            } else {
+                rang.push({"tempsBloc": [i,j]})
+            }
+        }
+        mapdeTempsBlocs.push(rang);
+    }
+};
+
+var getJourLable = function(jourNumbre){
+    var jour = jourListe[jourNumbre];
+    var moisText = mois[jour.getMonth()];
+    return jour.getDate() + " " + moisText;
+};
+
+//TODO:
+var getTimeLable = function(timeNumbre){
+    return tempsListe[timeNumbre] + "h";
+};
+
+//Initialize pour JourListe
+var initializeJourListe = function (debut, fin){
+    jourListe = []; 
+    var jours = (fin.getTime() - debut.getTime()) / MILLIS_PAR_JOUR;
+    jourListe.push[debut];
+
+    var date = debut.getTime();
+    for(var i = 0; i < jours; i ++){
+        date += MILLIS_PAR_JOUR;
+        var newDate = new Date(date); 
+        jourListe.push(newDate); 
+    }
+};
+
+
+//Initialize pour le temps liste
+var initializeTempsListe = function (debut, fin){
+    tempsListe = [];
+    for(var i = debut; i <= fin; i ++){
+        tempsListe.push(i);
+    }
+};
 
 // fonction qui construit des balises HTML a partir des entrees, soit le nom
 // de la balise, le code du style et le code contenu dans la balise
 // ******DAVID 12/01- TERMINEE******
-var balise = function(nom, style, contenu) {
-    return "<" + nom + " " + style +">" + contenu + "</" + nom + ">";
-};
+var balise = function(nom, propertyList, contenu) {
+    var text = "";
 
+    //ajouter nom s'il a besoin
+    if(nom != null && nom != ""){
+        text = text + "<" + nom + " ";
+    }
 
-// fonction qui prend une chaine de caracteres et la formate en code HTML
-// qui indique le style d'une balise
-// ******DAVID 12/01 - TERMINEE******
-var style = function(contenu) {
-  return "style=\"" + contenu + "\"";
+    if(propertyList != null && propertyList.length != 0){
+        for(var i = 0; i < propertyList.length; i ++){
+            var property = propertyList[i];
+            text = text + property[0] +"=\""+ property[1] + "\" ";
+        }
+    }
+    text = text + ">" + contenu + "</" + nom + ">";
+    return text;
 };
 
 
 // ******DAVID 12/01- EN DEVELOPPEMENT******
-var table = function(tabDates, tabHeures) {
-    
-    // le style des cases est definit
-    var styleA = style("EXEMPLE");
+var createCalendarTable = function() {
 
     // EXEMPLE DE TABLE A DEVELOPPER
-    return balise("table", "", mat.map(function(ligne, indiceLigne) {
-        if (indiceLigne & 1) {
-            return balise("tr", "", ligne.map(function(cellule, indice) {
-                if (indice & 1) {
-                    return balise("td", styleA, cellule);
-                } else { return balise("td", styleB, cellule);}
-            }).join(""))
-        } else {
-            return balise("tr", "", ligne.map(function(cellule, indice) {
-                if (indice & 1) {
-                    return balise("td", styleB, cellule);
-                } else { return balise("td", styleA, cellule);}
-            }).join(""))
-        }
-    }).join(""))
+    var propertyList = [["id", "calendrier"],
+                        ["data-nbjours", jourListe.length],
+                        ["data-nbheures", tempsListe.length]];
+
+    return balise("table", propertyList, mapdeTempsBlocs.map(function(ligne, indiceLigne) {
+        return balise("tr", "", ligne.map(function(cellule, indice) {
+            if(cellule.jourLable != null){
+                return balise("td",[["class", "tdlabel"]], cellule.jourLable);
+            } if (cellule.tempsLable != null){
+                return balise("td",[["class", "tdlabel"]], cellule.tempsLable);
+            } else {
+                if(cellule.tempsBloc[0] == -1 && cellule.tempsBloc[1] == -1){
+                    return balise("td",[["id", id], ["class","tdlabel"]], "");
+                } else {
+                    var id = cellule.tempsBloc[0] + "_" + cellule.tempsBloc[1];
+                    return balise("td",[["id", id], ["class","td"]], "");
+                }
+            }
+        }).join(""));
+    }).join(""));
 };
 
+var newTd = function(id){
+
+};
 
 // Fonction qui remplace un element dans un texte par un nouvel element
 // ******DAVID 12/01- TERMINEE******
@@ -207,6 +281,16 @@ var creerSondage = function (titre, id, dateDebut, dateFin, heureDebut, heureFin
     var maxJours =  (dateFinNum-dateDebutNum) <= 30;
 
     if (idValide(id) && heuresValides && datesValides && maxJours) {
+        //new sondage object et garder dans la liste
+        var sondage = {
+                "titre": titre, 
+                "id": id, 
+                "dateDebut": new Date(dateDebut),
+                "dateFin": new Date(dateFin), 
+                "heureDebut": parseInt(heureDebut), 
+                "heureFin": parseInt(heureFin) 
+            };
+        sondageList.push( {"id": id, "data": sondage});
         return true;
     }
     return false;
@@ -223,7 +307,9 @@ var idValide = function (id) {
                   return false;
         }
     }
-    return true;
+    //Pour eviter de creer le meme id dans la list
+    if(getSondage(id) == null)
+        return true;
 };
 
 // Ajoute un participant et ses disponibilités aux résultats d'un
@@ -319,3 +405,21 @@ http.createServer(function (requete, reponse) {
     sendPage(reponse, doc);
 
 }).listen(port);
+
+
+//La liste de sondages
+var sondageList = [];
+
+//Pour obtenir le sondage vient de la liste
+//id: sondage id
+var getSondage = function(id){
+    if (sondageList.length == 0 || id === "undefined")
+        return null;
+
+    for(var i = 0; i < sondageList.length; i ++){
+        var element = sondageList[i];
+        if(element.id == id)
+            return element;
+    }
+    return null;
+};
