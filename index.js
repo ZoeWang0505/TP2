@@ -135,8 +135,8 @@ var getCalendar = function (sondageId) {
     codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
     initializeCalendarTable(sondage.data);
 
-    codeHTML = remplacerTexte( createCalendarTable(), "{{table}}", codeHTML);
-    codeHTML = remplacerTexte("INSERER LE URL", "{{url}}", codeHTML);
+    codeHTML = remplacerTexte(createCalendarTable(), "{{table}}", codeHTML);
+    codeHTML = remplacerTexte("http://localhost:" + port + "/" + sondage.data.id, "{{url}}", codeHTML);
     return codeHTML;
 };
 
@@ -319,6 +319,10 @@ var idValide = function (id) {
 // Cette fonction ne retourne rien
 var ajouterParticipant = function (sondageId, nom, disponibilites) {
     // TODO
+    
+    //test pour voir les dispos entrees - a deleter
+    console.log(disponibilites);
+    // -------
 };
 
 // Génère la `i`ème couleur parmi un nombre total `total` au format
