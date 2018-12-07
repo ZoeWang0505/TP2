@@ -44,8 +44,18 @@ function onMove(event) {
     var id = t.id;
 };
 
+// Fonction qui retourne une serie de "0" et de "1" qui encode les
+// disponibilites selectionnees par les utilisateurs dans le tableau de dispos
+// ******DAVID 12/06 - TERMINEE******
 var compacterDisponibilites = function() {
-    // TODO
-
-    return '0000000';
+    var heures = document.getElementById("calendrier").dataset.nbheures;
+    var jours = document.getElementById("calendrier").dataset.nbjours;
+    var dispos = "";
+    for (var i=0; i<heures; i++) {
+        for (var j=0; j<jours; j++) {
+            var elemId = i+"_"+j;
+            dispos += (document.getElementById(elemId).innerHTML+"").length;
+        }
+    }
+    return dispos;
 };
