@@ -219,10 +219,9 @@ var balise = function(nom, propertyList, contenu) {
 };
 
 
-// ******DAVID 12/01- EN DEVELOPPEMENT******
+// ******DAVID 12/01- TERMINEE******
 var createCalendarTable = function() {
 
-    // EXEMPLE DE TABLE A DEVELOPPER
     var propertyList = [["id", "calendrier"],
                         ["data-nbjours", jourListe.length],
                         ["data-nbheures", tempsListe.length]];
@@ -249,6 +248,65 @@ var newTd = function(id){
 
 };
 
+
+// DAVID 12/09 ***INTEGRER 4.3.3 COULEURS DIFFERENTES***
+var listePartcipantsAbregee = function(sondageIdTemp, listeParticipants) {
+    var listeAbregee = Array(listeParticipants[0][2].length).fill(0).map(function(x) { return [].slice() });
+    for (var i=0; i<listeParticipants.length; i++) {
+        for (var j=0; j<listeParticipants[0][2].length; j++) {
+            if (listeParticipants[i][0] == sondageIdTemp &&
+                listeParticipants[i][2].slice().split("")[j] == '1') {
+                    listeAbregee[j].push(listeParticipants[i][1].slice());
+            }
+        }
+    }
+    var maxDispos = 0;
+    var minDispos = Infinity;
+    for (var k=0; k<listeAbregee.length; k++) {
+        if (listeAbregee[k].length > maxDispos) {
+            maxDispos = listeAbregee[k].length
+        }
+        if (listeAbregee[k].length < minDispos) {
+            minDispos = listeAbregee[k].length
+        }
+    }
+    return {liste: listeAbregee, min: minDispos, max: maxDispos};
+};
+
+
+// DAVID 12/09 ***INTEGRER 4.3.3 COULEURS DIFFERENTES***
+var createResultsTable = function(sondageIdTemp, listeParticipants) {
+    var tabResultats = mapdeTempsBlocs.slice();
+    tabResultats[0][0] = { jourLable: '' };
+    
+    var listeAbregee = listePartcipantsAbregee(sondageIdTemp, listeParticipants);
+    var compteCellule = 0;
+    
+    return balise("table", "", tabResultats.map(function(ligne, indiceLigne) {
+        return balise("tr", "", ligne.map(function(cellule, indice) {
+            if(cellule.jourLable != null){
+                return balise("th","", cellule.jourLable);
+            } if (cellule.tempsLable != null){
+                return balise("th", "", cellule.tempsLable);
+            } else {
+                var classe = "";
+                if (listeAbregee.liste[compteCellule].length == listeAbregee.min) {
+                    classe = ["class","min"]; 
+                }
+                if (listeAbregee.liste[compteCellule].length == listeAbregee.max) {
+                    classe = ["class","max"]; 
+                }
+                var contenuBalise = "";
+                for (var i=0; i<listeAbregee.liste[compteCellule].length; i++) {
+                    contenuBalise += balise("span",[["style","background-color: #b20000; color:#b20000"]], ".")
+                }
+                compteCellule++;
+                return balise("td", [classe], contenuBalise);
+            }
+        }).join(""));
+    }).join(""));
+};
+
 // Fonction qui remplace un element dans un texte par un nouvel element
 // ******DAVID 12/01- TERMINEE******
 var remplacerTexte = function(nouvContenu, contenuARemplacer, texte) {
@@ -261,7 +319,27 @@ var remplacerTexte = function(nouvContenu, contenuARemplacer, texte) {
 //
 // Doit retourner false si le calendrier demandé n'existe pas
 var getResults = function (sondageId) {
-    // TODO
+    var sondage = getSondage(sondageId);
+    if(sondage == null)
+        return false;
+    
+    var codeHTML = readFile("template/results.html");
+    
+    var participants = "";
+    for (var i=0; i<listeParticipants.length; i++) {
+        if (sondageId == listeParticipants[i][0]){
+            participants += balise("li", [["style", "background-color: #b20000"]], listeParticipants[i][1]);
+        }
+    }
+
+    codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
+    initializeCalendarTable(sondage.data);
+
+    codeHTML = remplacerTexte(createResultsTable(sondageIdTemp, listeParticipants), "{{table}}", codeHTML);
+    codeHTML = remplacerTexte("http://localhost:" + port + "/" + sondage.data.id, "{{url}}", codeHTML);
+    codeHTML = remplacerTexte(participants, "{{legende}}", codeHTML);
+    return codeHTML;
+    
     return 'Resultats du sondage <b>' + sondageId + '</b> (TODO)';
 };
 
@@ -316,13 +394,16 @@ var idValide = function (id) {
 // sondage. Les disponibilités sont envoyées au format textuel
 // fourni par la fonction compacterDisponibilites() de public/calendar.js
 //
+
+var listeParticipants = [];
+var sondageIdTemp ="";
+
+
 // Cette fonction ne retourne rien
 var ajouterParticipant = function (sondageId, nom, disponibilites) {
-    // TODO
-    
-    //test pour voir les dispos entrees - a deleter
-    console.log(disponibilites);
-    // -------
+    listeParticipants.push([sondageId, nom, disponibilites]);
+    console.log(listeParticipants);
+    sondageIdTemp = sondageId;
 };
 
 // Génère la `i`ème couleur parmi un nombre total `total` au format
