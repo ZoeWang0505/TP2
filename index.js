@@ -17,6 +17,22 @@ var port = 1337;
 var hostUrl = 'http://localhost:'+port+'/';
 var defaultPage = '/index.html';
 
+/********* variables globes **************/
+//coefficientDeCouleur
+var coefficientCouleur = 0.7;
+var couleurMax =  255;
+//Liste de participants
+var listeParticipants = [];
+
+//La liste de sondages
+var sondageList = [];
+
+//Liste de jour
+var jourListe = [];
+var tempsListe = []; 
+var mapdeTempsBlocs = [];
+
+/********************************/
 var mimes = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -64,6 +80,7 @@ var getDocument = function (url) {
 
     return result;
 };
+
 var sendPage = function (reponse, page) {
     reponse.writeHeader(page.status, {'Content-Type' : page.type});
     reponse.end(page.data);
@@ -96,7 +113,6 @@ var indexQuery = function (query) {
 var calQuery = function (id, query) {
     if (query !== null) {
         query = querystring.parse(query);
-        // query = { nom: ..., disponibilites: ... }
         ajouterParticipant(id, query.nom, query.disponibilites);
         return true;
     }
@@ -111,9 +127,6 @@ var getIndex = function (replacements) {
     };
 };
 
-
-// --- À compléter ---
-
 var mois = [
     'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
     'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -125,7 +138,6 @@ var MILLIS_PAR_JOUR = (24 * 60 * 60 * 1000);
 // sondage demandé.
 //
 // Doit retourner false si le calendrier demandé n'existe pas
-// ******DAVID 12/01- EN DEVELOPPEMENT******
 var getCalendar = function (sondageId) {
     var sondage = getSondage(sondageId);
     if(sondage == null)
@@ -136,14 +148,12 @@ var getCalendar = function (sondageId) {
     initializeCalendarTable(sondage.data);
 
     codeHTML = remplacerTexte(createCalendarTable(), "{{table}}", codeHTML);
-    codeHTML = remplacerTexte("http://localhost:" + port + "/" + sondage.data.id, "{{url}}", codeHTML);
+    codeHTML = remplacerTexte("http://localhost:" + port + "/" + 
+                              sondage.data.id, "{{url}}", codeHTML);
     return codeHTML;
 };
 
-var jourListe = [];
-var tempsListe = []; 
-var mapdeTempsBlocs = [];
-
+//Pour preparer les donnee a construire canlendrier
 var initializeCalendarTable = function(data){
     initializeJourListe(data.dateDebut, data.dateFin);
     initializeTempsListe(data.heureDebut, data.heureFin);
@@ -163,13 +173,14 @@ var initializeCalendarTable = function(data){
     }
 };
 
+//Pour obtenir lable de Jour
 var getJourLable = function(jourNumbre){
     var jour = jourListe[jourNumbre];
     var moisText = mois[jour.getMonth()];
     return jour.getDate() + " " + moisText;
 };
 
-//TODO:
+//Pour obtenir lable de temps
 var getTimeLable = function(timeNumbre){
     return tempsListe[timeNumbre] + "h";
 };
@@ -188,7 +199,6 @@ var initializeJourListe = function (debut, fin){
     }
 };
 
-
 //Initialize pour le temps liste
 var initializeTempsListe = function (debut, fin){
     tempsListe = [];
@@ -199,7 +209,6 @@ var initializeTempsListe = function (debut, fin){
 
 // fonction qui construit des balises HTML a partir des entrees, soit le nom
 // de la balise, le code du style et le code contenu dans la balise
-// ******DAVID 12/01- TERMINEE******
 var balise = function(nom, propertyList, contenu) {
     var text = "";
 
@@ -207,7 +216,7 @@ var balise = function(nom, propertyList, contenu) {
     if(nom != null && nom != ""){
         text = text + "<" + nom + " ";
     }
-
+    //ajouter chaque property a HTML
     if(propertyList != null && propertyList.length != 0){
         for(var i = 0; i < propertyList.length; i ++){
             var property = propertyList[i];
@@ -218,15 +227,16 @@ var balise = function(nom, propertyList, contenu) {
     return text;
 };
 
-
-// ******DAVID 12/01- TERMINEE******
+//Nouveau tableau HTML pour afficher canlendrier
 var createCalendarTable = function() {
 
     var propertyList = [["id", "calendrier"],
                         ["data-nbjours", jourListe.length],
                         ["data-nbheures", tempsListe.length]];
 
-    return balise("table", propertyList, mapdeTempsBlocs.map(function(ligne, indiceLigne) {
+    return balise("table", propertyList, mapdeTempsBlocs.map(
+        function(ligne, indiceLigne){
+
         return balise("tr", "", ligne.map(function(cellule, indice) {
             if(cellule.jourLable != null){
                 return balise("td",[["class", "tdlabel"]], cellule.jourLable);
@@ -241,22 +251,25 @@ var createCalendarTable = function() {
                 }
             }
         }).join(""));
+
     }).join(""));
 };
 
-var newTd = function(id){
-
-};
-
-
 // DAVID 12/09 ***INTEGRER 4.3.3 COULEURS DIFFERENTES***
-var listePartcipantsAbregee = function(sondageIdTemp, listeParticipants) {
-    var listeAbregee = Array(listeParticipants[0][2].length).fill(0).map(function(x) { return [].slice() });
+var listePartcipantsAbregee = function(sondageId) {
+    var listeAbregee = [];
     for (var i=0; i<listeParticipants.length; i++) {
-        for (var j=0; j<listeParticipants[0][2].length; j++) {
-            if (listeParticipants[i][0] == sondageIdTemp &&
-                listeParticipants[i][2].slice().split("")[j] == '1') {
-                    listeAbregee[j].push(listeParticipants[i][1].slice());
+        for (var j=0; j<listeParticipants[i].disponibilites.length; j++) {
+            if (listeParticipants[i].id == sondageId){
+                var disp = listeParticipants[i].disponibilites;
+                if( listeAbregee.length == 0){
+                    listeAbregee = 
+                        Array(disp.length).fill(0).map(
+                            function(x) { return [].slice() });
+                }
+                if(disp.slice().split("")[j] == '1') {
+                    listeAbregee[j].push(listeParticipants[i]);
+                }
             }
         }
     }
@@ -264,10 +277,10 @@ var listePartcipantsAbregee = function(sondageIdTemp, listeParticipants) {
     var minDispos = Infinity;
     for (var k=0; k<listeAbregee.length; k++) {
         if (listeAbregee[k].length > maxDispos) {
-            maxDispos = listeAbregee[k].length
+            maxDispos = listeAbregee[k].length;
         }
         if (listeAbregee[k].length < minDispos) {
-            minDispos = listeAbregee[k].length
+            minDispos = listeAbregee[k].length;
         }
     }
     return {liste: listeAbregee, min: minDispos, max: maxDispos};
@@ -275,11 +288,11 @@ var listePartcipantsAbregee = function(sondageIdTemp, listeParticipants) {
 
 
 // DAVID 12/09 ***INTEGRER 4.3.3 COULEURS DIFFERENTES***
-var createResultsTable = function(sondageIdTemp, listeParticipants) {
+var createResultsTable = function(sondageId) {
     var tabResultats = mapdeTempsBlocs.slice();
     tabResultats[0][0] = { jourLable: '' };
     
-    var listeAbregee = listePartcipantsAbregee(sondageIdTemp, listeParticipants);
+    var listeAbregee = listePartcipantsAbregee(sondageId);
     var compteCellule = 0;
     
     return balise("table", "", tabResultats.map(function(ligne, indiceLigne) {
@@ -290,15 +303,21 @@ var createResultsTable = function(sondageIdTemp, listeParticipants) {
                 return balise("th", "", cellule.tempsLable);
             } else {
                 var classe = "";
-                if (listeAbregee.liste[compteCellule].length == listeAbregee.min) {
+                var list = listeAbregee.liste[compteCellule];
+                if (list.length == listeAbregee.min) {
                     classe = ["class","min"]; 
                 }
-                if (listeAbregee.liste[compteCellule].length == listeAbregee.max) {
+                if (list.length == listeAbregee.max) {
                     classe = ["class","max"]; 
                 }
                 var contenuBalise = "";
-                for (var i=0; i<listeAbregee.liste[compteCellule].length; i++) {
-                    contenuBalise += balise("span",[["style","background-color: #b20000; color:#b20000"]], ".")
+                for (var i=0; i<list.length; i++) {
+                    var couleur = list[i].couleur;
+                    contenuBalise += balise(
+                        "span",
+                        [["style","background-color:" + couleur + 
+                                        ";color:"+ couleur +";"]],
+                        ".");
                 }
                 compteCellule++;
                 return balise("td", [classe], contenuBalise);
@@ -308,15 +327,12 @@ var createResultsTable = function(sondageIdTemp, listeParticipants) {
 };
 
 // Fonction qui remplace un element dans un texte par un nouvel element
-// ******DAVID 12/01- TERMINEE******
 var remplacerTexte = function(nouvContenu, contenuARemplacer, texte) {
     return texte.split(contenuARemplacer).join(nouvContenu);
 };
 
-
 // Retourne le texte HTML à afficher à l'utilisateur pour voir les
 // résultats du sondage demandé
-//
 // Doit retourner false si le calendrier demandé n'existe pas
 var getResults = function (sondageId) {
     var sondage = getSondage(sondageId);
@@ -324,31 +340,37 @@ var getResults = function (sondageId) {
         return false;
     
     var codeHTML = readFile("template/results.html");
-    
-    var participants = "";
-    for (var i=0; i<listeParticipants.length; i++) {
-        if (sondageId == listeParticipants[i][0]){
-            participants += balise("li", [["style", "background-color: #b20000"]], listeParticipants[i][1]);
-        }
-    }
-
     codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
-    initializeCalendarTable(sondage.data);
-
-    codeHTML = remplacerTexte(createResultsTable(sondageIdTemp, listeParticipants), "{{table}}", codeHTML);
-    codeHTML = remplacerTexte("http://localhost:" + port + "/" + sondage.data.id, "{{url}}", codeHTML);
-    codeHTML = remplacerTexte(participants, "{{legende}}", codeHTML);
+    codeHTML = remplacerTexte(createResultsTable(sondageId), 
+                              "{{table}}", codeHTML);
+    codeHTML = remplacerTexte("http://localhost:" + port + "/" + sondageId, 
+                              "{{url}}", codeHTML);
+    codeHTML = remplacerTexte(createParticipantsHTML(sondageId), 
+                              "{{legende}}", codeHTML);
     return codeHTML;
     
-    return 'Resultats du sondage <b>' + sondageId + '</b> (TODO)';
+};
+
+//Construire html pour la liste de participants
+var createParticipantsHTML = function(sondageId){
+    var participantsHTML = "";
+    for (var i=0; i<listeParticipants.length; i++) {
+        if (sondageId == listeParticipants[i].id){
+            participantsHTML += balise("li", 
+                    [["style", 
+                      "background-color: " + listeParticipants[i].couleur]], 
+                      listeParticipants[i].nom);
+        }
+    }
+    return participantsHTML;
 };
 
 // Crée un sondage à partir des informations entrées
-//
 // Doit retourner false si les informations ne sont pas valides, ou
 // true si le sondage a été créé correctement.
 // ******DAVID 12/01 - TERMINEE******
-var creerSondage = function (titre, id, dateDebut, dateFin, heureDebut, heureFin) {
+var creerSondage = function (titre, id, dateDebut, dateFin,
+                             heureDebut, heureFin) {
     
     // le site https://www.w3schools.com/jsref/jsref_gettime.asp est la
     // reference pour l'usage de la fonction Date() et de la methode .getTime() 
@@ -374,6 +396,20 @@ var creerSondage = function (titre, id, dateDebut, dateFin, heureDebut, heureFin
     return false;
 };
 
+//Pour obtenir le sondage vient de la liste
+//id: sondage id
+var getSondage = function(id){
+    if (sondageList.length == 0 || id === "undefined")
+        return null;
+
+    for(var i = 0; i < sondageList.length; i ++){
+        var element = sondageList[i];
+        if(element.id == id)
+            return element;
+    }
+    return null;
+};
+
 //Fonction qui verifie que l'identifiant entre par l'utilisateur est bien valide
 // ******DAVID 12/01 - TERMINEE******
 var idValide = function (id) {
@@ -393,20 +429,19 @@ var idValide = function (id) {
 // Ajoute un participant et ses disponibilités aux résultats d'un
 // sondage. Les disponibilités sont envoyées au format textuel
 // fourni par la fonction compacterDisponibilites() de public/calendar.js
-//
-
-var listeParticipants = [];
-var sondageIdTemp ="";
-
-
 // Cette fonction ne retourne rien
 var ajouterParticipant = function (sondageId, nom, disponibilites) {
-    listeParticipants.push([sondageId, nom, disponibilites]);
-    console.log(listeParticipants);
-    sondageIdTemp = sondageId;
+    var number = listeParticipants.length;
+    var couleur = genColor(number, number+1);
+    listeParticipants.push({
+                            "id":sondageId, 
+                            "nom": nom, 
+                            "disponibilites": disponibilites,
+                            "couleur": couleur
+                           });
 };
 
-// Génère la `i`ème couleur parmi un nombre total `total` au format
+// Génère la i ieme couleur parmi un nombre total `total` au format
 // hexadécimal HTML
 //
 // Notez que pour un grand nombre de couleurs (ex.: 250), générer
@@ -414,10 +449,47 @@ var ajouterParticipant = function (sondageId, nom, disponibilites) {
 // commence en rouge, qui passe par toutes les autres couleurs et qui
 // revient à rouge.
 var genColor = function(i, nbTotal) {
-    // TODO
-    return '#000000';
+    var teinte = ( i / nbTotal ) * 360;
+    var h = teinte /60;
+    var x = Math.floor(couleurMax * coefficientCouleur * 
+                            (1 - Math.abs( h % 2 - 1)));
+    
+    var c = Math.floor(coefficientCouleur * couleurMax);
+    var rgb = [];
+    switch(Math.floor(h)){
+        case 0:
+            rgb = [c, x , 0];
+            break;
+        case 1:
+            rgb = [x, c, 0];
+            break;
+        case 2:
+            rgb = [0, c, x];
+            break;
+        case 3: 
+            rgb = [0, x, c];
+            break;
+        case 4:
+            rgb = [x, 0, c];
+            break;
+        case 5:
+            rgb = [c, 0, x];
+            break;
+        default:
+            rgb = [0,0,0];
+            break;
+    }
+    var couleur = "#" + componentToHex(rgb[0]) + 
+                        componentToHex(rgb[1]) + 
+                        componentToHex(rgb[2]);
+    return couleur;
 };
 
+//Pour transformer couleur number a Hex
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+};
 
 /*
  * Création du serveur HTTP
@@ -490,21 +562,3 @@ http.createServer(function (requete, reponse) {
     sendPage(reponse, doc);
 
 }).listen(port);
-
-
-//La liste de sondages
-var sondageList = [];
-
-//Pour obtenir le sondage vient de la liste
-//id: sondage id
-var getSondage = function(id){
-    if (sondageList.length == 0 || id === "undefined")
-        return null;
-
-    for(var i = 0; i < sondageList.length; i ++){
-        var element = sondageList[i];
-        if(element.id == id)
-            return element;
-    }
-    return null;
-};

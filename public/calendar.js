@@ -8,11 +8,6 @@
 
 
 document.addEventListener('DOMContentLoaded', function() {
-    // TODO: Ajoutez ici du code qui doit s'exécuter au chargement de
-    // la page
-
-    //****DAVID TEST****
-    //document.getElementById("partager").innerHTML = "OOO";
 
     var calendrier = document.getElementById("calendrier");
     if(calendrier == null)
@@ -20,7 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var nbHeures = calendrier.dataset.nbheures;
     var nbJours = calendrier.dataset.nbjours;
-    //newCalendarTable(calendrier);
+
     calendrier.addEventListener("mousedown", onClick);
     calendrier.addEventListener("mouseover", onMove);
 
@@ -34,14 +29,22 @@ function onClick(event) {
        tableau */
     var t = event.target;
     // Attribut id de l'élément sur lequel le clic a été fait
-    var id = t.id;
-    t.innerHTML = t.innerHTML == "" ? "&#10004;" : "";
+    var id = "";
+
+    //Fix defect: if click on element which is not a td, do not change
+    if(t.nodeName.toLocaleLowerCase() == "td"){
+        id = t.id;
+        t.innerHTML = t.innerHTML == "" ? "&#10004;" : "";
+    }
+        
 };
 
 function onMove(event) {
-    // TODO
     var t = event.target;
-    var id = t.id;
+    var id = "";
+    if(t.nodeName.toLocaleLowerCase() == "td"){
+        id = t.id;
+    }
 };
 
 // Fonction qui retourne une serie de "0" et de "1" qui encode les
