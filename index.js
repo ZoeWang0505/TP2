@@ -9,6 +9,10 @@
 var http = require("http");
 var fs = require('fs');
 
+//utilise validator pour 
+//var check = require('validator').check;
+//var sanitize = require('validator').sanitize;
+
 var urlParse = require('url').parse;
 var pathParse = require('path').parse;
 var querystring = require('querystring');
@@ -88,7 +92,7 @@ var sendPage = function (reponse, page) {
 
 var indexQuery = function (query) {
 
-    var resultat = { exists: false, id: null };
+    var resultat = { exists: false, data: null, id: null };
 
     if (query !== null) {
 
@@ -96,7 +100,7 @@ var indexQuery = function (query) {
         if ('id' in query && 'titre' in query &&
             query.id.length > 0 && query.titre.length > 0) {
 
-            resultat.exists = creerSondage(
+            resultat = creerSondage(
                 query.titre, query.id,
                 query.dateDebut, query.dateFin,
                 query.heureDebut, query.heureFin);
@@ -120,9 +124,20 @@ var calQuery = function (id, query) {
 };
 
 var getIndex = function (replacements) {
+    var indexHTML = readFile('template/index.html');
+    
+    //Bonus: 
+    //Figure 5: Message d’erreur de base pour les formulaires invalides
+    if(replacements != undefined && replacements != null){
+        var errorElement = "div id=\"error\">";
+        var replaceStart = indexHTML.indexOf(errorElement) + errorElement.length;
+        var replaceEnd = indexHTML.indexOf("</div>", replaceStart);
+        var replacetext = indexHTML.substring(replaceStart, replaceEnd -1);
+        indexHTML = indexHTML.replace(replacetext, replacements);
+    }
     return {
         status: 200,
-        data: readFile('template/index.html'),
+        data: indexHTML,
         type: 'text/html'
     };
 };
@@ -141,7 +156,7 @@ var MILLIS_PAR_JOUR = (24 * 60 * 60 * 1000);
 var getCalendar = function (sondageId) {
     var sondage = getSondage(sondageId);
     if(sondage == null)
-        return; //TO return error
+        return false;
     var codeHTML = readFile("template/calendar.html");
 
     codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
@@ -380,20 +395,37 @@ var creerSondage = function (titre, id, dateDebut, dateFin,
     var datesValides = dateDebutNum <= dateFinNum;
     var maxJours =  (dateFinNum-dateDebutNum) <= 30;
 
-    if (idValide(id) && heuresValides && datesValides && maxJours) {
-        //new sondage object et garder dans la liste
-        var sondage = {
-                "titre": titre, 
-                "id": id, 
-                "dateDebut": new Date(dateDebut),
-                "dateFin": new Date(dateFin), 
-                "heureDebut": parseInt(heureDebut), 
-                "heureFin": parseInt(heureFin) 
-            };
-        sondageList.push( {"id": id, "data": sondage});
-        return true;
+    //Bonus: 
+    //Figure 5: Message d’erreur de base pour les formulaires invalides
+    if (!idValide(id)){
+        return {exists: false, 
+                data: "Error: L'identifiant de sondage correspond à un sondage existant"};
     }
-    return false;
+    
+    if(!heuresValides) {
+        return {exists: false,
+                data: "Error: L’heure de fin doit être après l’heure de début"};
+    }
+    if(!datesValides) {
+        return {exists: false,
+                data: "Error: Le jour de fin doit être après le jour de début"};
+    } 
+    if(!maxJours){
+        return {exists: false,
+                data: "Error: La durée maximale d’un sondage est de 30 jours"};
+    } 
+    //new sondage object et garder dans la liste
+    var sondage = {
+            "titre": titre, 
+            "id": id, 
+            "dateDebut": new Date(dateDebut),
+            "dateFin": new Date(dateFin), 
+            "heureDebut": parseInt(heureDebut), 
+            "heureFin": parseInt(heureFin) 
+        };
+    sondageList.push( {"id": id, "data": sondage});
+    return {exists: true, data: null};
+
 };
 
 //Pour obtenir le sondage vient de la liste
