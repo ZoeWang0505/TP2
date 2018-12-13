@@ -1,6 +1,8 @@
 // Raby-Pepin, David & Wang, XiaoQian
-// 07-12-2018
-// Description
+// 12-12-2018
+// Le programme execute une application dans le style du site doodle.com qui
+// permet de planifier des reunions et autres activites aux moments qui
+// conviennent le mieux à tous les participants.
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -29,12 +31,12 @@ var couleurMax =  255;
 var listeParticipants = [];
 
 //La liste de sondages
-var sondageList = [];
+var listeSondagesExistants = [];
 
 //Liste de jour
-var jourListe = [];
-var tempsListe = []; 
-var mapdeTempsBlocs = [];
+var listeJours = [];
+var listeHeures = []; 
+var matriceCalendrier = [];
 
 /********************************/
 var mimes = {
@@ -126,11 +128,11 @@ var calQuery = function (id, query) {
 var getIndex = function (replacements) {
     var indexHTML = readFile('template/index.html');
     
-    //Bonus: 
-    //Figure 5: Message d’erreur de base pour les formulaires invalides
+    // Bonus: 
+    // Figure 5: Message d’erreur de base pour les formulaires invalides
     if(replacements != undefined && replacements != null){
         var errorElement = "div id=\"error\">";
-        var replaceStart = indexHTML.indexOf(errorElement) + errorElement.length;
+        var replaceStart = indexHTML.indexOf(errorElement)+errorElement.length;
         var replaceEnd = indexHTML.indexOf("</div>", replaceStart);
         var replacetext = indexHTML.substring(replaceStart, replaceEnd -1);
         indexHTML = indexHTML.replace(replacetext, replacements);
@@ -142,145 +144,148 @@ var getIndex = function (replacements) {
     };
 };
 
+// Liste des mois dans une annee
 var mois = [
     'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
     'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
 
+// Le nombre de millisecondes dans une journee
 var MILLIS_PAR_JOUR = (24 * 60 * 60 * 1000);
 
-// Retourne le texte HTML à afficher à l'utilisateur pour répondre au
-// sondage demandé.
-//
-// Doit retourner false si le calendrier demandé n'existe pas
+// Retourne le texte HTML à afficher à l'utilisateur pour repondre au
+// sondage demande; retourne false si le calendrier demande n'existe pas
 var getCalendar = function (sondageId) {
-    var sondage = getSondage(sondageId);
+    var sondage = obtenirSondage(sondageId);
     if(sondage == null)
         return false;
+    
     var codeHTML = readFile("template/calendar.html");
-
     codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
-    initializeCalendarTable(sondage.data);
-
-    codeHTML = remplacerTexte(createCalendarTable(), "{{table}}", codeHTML);
+    structureTabCalendrier(sondage.data);
+    codeHTML = remplacerTexte(creerCodeCalendrier(), "{{table}}", codeHTML);
     codeHTML = remplacerTexte("http://localhost:" + port + "/" + 
                               sondage.data.id, "{{url}}", codeHTML);
     return codeHTML;
 };
 
-//Pour preparer les donnee a construire canlendrier
-var initializeCalendarTable = function(data){
-    initializeJourListe(data.dateDebut, data.dateFin);
-    initializeTempsListe(data.heureDebut, data.heureFin);
-    mapdeTempsBlocs = [];
-    for(var i = -1; i < tempsListe.length; i ++){
-        var rang = [];
-        for(var j = -1; j < jourListe.length; j ++){
+// Fonction qui prepare la structure du tableau utilise afin de construire
+// le calendrier
+var structureTabCalendrier = function(data){
+    creeListeJours(data.dateDebut, data.dateFin);
+    creeListeHeures(data.heureDebut, data.heureFin);
+    matriceCalendrier = [];
+    
+    for(var i = -1; i < listeHeures.length; i ++){
+        var rangee = [];
+        for(var j = -1; j < listeJours.length; j ++){
             if( i == -1 && j != -1){
-                rang.push({"jourLable": getJourLable(j)});
+                rangee.push({"enTeteJour": obtenirEnTeteJour(j)});
             } else if(j == -1 && i != -1){
-                rang.push({"tempsLable": getTimeLable(i)});
+                rangee.push({"enTeteHeure": obtenirEnTeteHeure(i)});
             } else {
-                rang.push({"tempsBloc": [i,j]})
+                rangee.push({"caseCalendrier": [i,j]})
             }
         }
-        mapdeTempsBlocs.push(rang);
+        matriceCalendrier.push(rangee);
     }
 };
 
-//Pour obtenir lable de Jour
-var getJourLable = function(jourNumbre){
-    var jour = jourListe[jourNumbre];
-    var moisText = mois[jour.getMonth()];
-    return jour.getDate() + " " + moisText;
+// Fonction qui cree les en-tetes de jours dans le tableau utilise afin de
+// construire le calendrier
+var obtenirEnTeteJour = function(numJour){
+    var jour = listeJours[numJour];
+    var moisTexte = mois[jour.getMonth()];
+    return jour.getDate() + " " + moisTexte;
 };
 
-//Pour obtenir lable de temps
-var getTimeLable = function(timeNumbre){
-    return tempsListe[timeNumbre] + "h";
+// Fonction qui cree les en-tetes d'heures dans le tableau utilise afin de
+// construire le calendrier
+var obtenirEnTeteHeure = function(numHeure){
+    return listeHeures[numHeure] + "h";
 };
 
-//Initialize pour JourListe
-var initializeJourListe = function (debut, fin){
-    jourListe = []; 
-    var jours = (fin.getTime() - debut.getTime()) / MILLIS_PAR_JOUR;
-    jourListe.push[debut];
+// Fonction qui cree une liste des jours dans le calendrier
+var creeListeJours = function (jourDebut, jourFin){
+    listeJours = []; 
+    var jours = (jourFin.getTime() - jourDebut.getTime()) / MILLIS_PAR_JOUR;
+    listeJours.push[jourDebut];
 
-    var date = debut.getTime();
+    var date = jourDebut.getTime();
     for(var i = 0; i < jours; i ++){
         date += MILLIS_PAR_JOUR;
         var newDate = new Date(date); 
-        jourListe.push(newDate); 
+        listeJours.push(newDate); 
     }
 };
 
-//Initialize pour le temps liste
-var initializeTempsListe = function (debut, fin){
-    tempsListe = [];
-    for(var i = debut; i <= fin; i ++){
-        tempsListe.push(i);
+// Fonction qui cree une liste des heures dans le calendrier
+var creeListeHeures = function (heureDebut, heureFin){
+    listeHeures = [];
+    for(var i = heureDebut; i <= heureFin; i ++){
+        listeHeures.push(i);
     }
 };
 
-// fonction qui construit des balises HTML a partir des entrees, soit le nom
-// de la balise, le code du style et le code contenu dans la balise
-var balise = function(nom, propertyList, contenu) {
-    var text = "";
+// Fonction qui construit des balises HTML a partir des entrees, soit le nom
+// de la balise, ses proprietes et le code contenu dans la balise
+var balise = function(nom, listeProprietes, contenu) {
+    var texte = "";
 
-    //ajouter nom s'il a besoin
+    // ajoute un nom si necessaire
     if(nom != null && nom != ""){
-        text = text + "<" + nom + " ";
+        texte = texte + "<" + nom + " ";
     }
-    //ajouter chaque property a HTML
-    if(propertyList != null && propertyList.length != 0){
-        for(var i = 0; i < propertyList.length; i ++){
-            var property = propertyList[i];
-            text = text + property[0] +"=\""+ property[1] + "\" ";
+    // ajoute les proprietes
+    if(listeProprietes != null && listeProprietes.length != 0){
+        for(var i = 0; i < listeProprietes.length; i ++){
+            var property = listeProprietes[i];
+            texte = texte + property[0] +"=\""+ property[1] + "\" ";
         }
     }
-    text = text + ">" + contenu + "</" + nom + ">";
-    return text;
+    texte = texte + ">" + contenu + "</" + nom + ">";
+    return texte;
 };
 
-//Nouveau tableau HTML pour afficher canlendrier
-var createCalendarTable = function() {
+// Cree le code HTML afin d'afficher le canlendrier en ligne
+var creerCodeCalendrier = function() {
+    var listeProprietes = [["id", "calendrier"],
+                        ["data-nbjours", listeJours.length],
+                        ["data-nbheures", listeHeures.length]];
 
-    var propertyList = [["id", "calendrier"],
-                        ["data-nbjours", jourListe.length],
-                        ["data-nbheures", tempsListe.length]];
-
-    return balise("table", propertyList, mapdeTempsBlocs.map(
+    return balise("table", listeProprietes, matriceCalendrier.map(
         function(ligne, indiceLigne){
-
         return balise("tr", "", ligne.map(function(cellule, indice) {
-            if(cellule.jourLable != null){
-                return balise("td",[["class", "tdlabel"]], cellule.jourLable);
-            } if (cellule.tempsLable != null){
-                return balise("td",[["class", "tdlabel"]], cellule.tempsLable);
+            if(cellule.enTeteJour != null){
+                return balise("td",[["class", "tdlabel"]], cellule.enTeteJour);
+            } if (cellule.enTeteHeure != null){
+                return balise("td",[["class", "tdlabel"]], cellule.enTeteHeure);
             } else {
-                if(cellule.tempsBloc[0] == -1 && cellule.tempsBloc[1] == -1){
+                if(cellule.caseCalendrier[0] == -1 &&
+                   cellule.caseCalendrier[1] == -1){
                     return balise("td",[["id", id], ["class","tdlabel"]], "");
                 } else {
-                    var id = cellule.tempsBloc[0] + "_" + cellule.tempsBloc[1];
+                    var id = (cellule.caseCalendrier[0] + "_" +
+                              cellule.caseCalendrier[1]);
                     return balise("td",[["id", id], ["class","td"]], "");
                 }
             }
         }).join(""));
-
     }).join(""));
 };
 
-// DAVID 12/09 ***INTEGRER 4.3.3 COULEURS DIFFERENTES***
+// Fonction qui cree une liste pour chaque case du calendrier de tous les
+// participants qui ont indiques etre disponibiles a ce moment et qui calcule
+// le maximum et le minimum de disponibilites dans le calendrier
 var listePartcipantsAbregee = function(sondageId) {
     var listeAbregee = [];
     for (var i=0; i<listeParticipants.length; i++) {
         for (var j=0; j<listeParticipants[i].disponibilites.length; j++) {
             if (listeParticipants[i].id == sondageId){
                 var disp = listeParticipants[i].disponibilites;
-                if( listeAbregee.length == 0){
-                    listeAbregee = 
-                        Array(disp.length).fill(0).map(
-                            function(x) { return [].slice() });
+                if(listeAbregee.length == 0){
+                    listeAbregee = Array(disp.length).fill(0).map(
+                                   function(x) { return [].slice() });
                 }
                 if(disp.slice().split("")[j] == '1') {
                     listeAbregee[j].push(listeParticipants[i]);
@@ -288,6 +293,7 @@ var listePartcipantsAbregee = function(sondageId) {
             }
         }
     }
+
     var maxDispos = 0;
     var minDispos = Infinity;
     for (var k=0; k<listeAbregee.length; k++) {
@@ -301,21 +307,19 @@ var listePartcipantsAbregee = function(sondageId) {
     return {liste: listeAbregee, min: minDispos, max: maxDispos};
 };
 
-
-// DAVID 12/09 ***INTEGRER 4.3.3 COULEURS DIFFERENTES***
-var createResultsTable = function(sondageId) {
-    var tabResultats = mapdeTempsBlocs.slice();
-    tabResultats[0][0] = { jourLable: '' };
-    
+// Cree le code HTML afin d'afficher les resultats du sondage en ligne
+var creerCodeResultats = function(sondageId) {
+    var tabResultats = matriceCalendrier.slice();
+    tabResultats[0][0] = { enTeteJour: '' };
     var listeAbregee = listePartcipantsAbregee(sondageId);
     var compteCellule = 0;
-    
+
     return balise("table", "", tabResultats.map(function(ligne, indiceLigne) {
         return balise("tr", "", ligne.map(function(cellule, indice) {
-            if(cellule.jourLable != null){
-                return balise("th","", cellule.jourLable);
-            } if (cellule.tempsLable != null){
-                return balise("th", "", cellule.tempsLable);
+            if(cellule.enTeteJour != null){
+                return balise("th","", cellule.enTeteJour);
+            } if (cellule.enTeteHeure != null){
+                return balise("th", "", cellule.enTeteHeure);
             } else {
                 var classe = "";
                 var list = listeAbregee.liste[compteCellule];
@@ -328,11 +332,9 @@ var createResultsTable = function(sondageId) {
                 var contenuBalise = "";
                 for (var i=0; i<list.length; i++) {
                     var couleur = list[i].couleur;
-                    contenuBalise += balise(
-                        "span",
-                        [["style","background-color:" + couleur + 
-                                        ";color:"+ couleur +";"]],
-                        ".");
+                    contenuBalise += balise("span",
+                                     [["style","background-color:" + couleur +
+                                     ";color:"+ couleur +";"]], ".");
                 }
                 compteCellule++;
                 return balise("td", [classe], contenuBalise);
@@ -346,28 +348,26 @@ var remplacerTexte = function(nouvContenu, contenuARemplacer, texte) {
     return texte.split(contenuARemplacer).join(nouvContenu);
 };
 
-// Retourne le texte HTML à afficher à l'utilisateur pour voir les
-// résultats du sondage demandé
-// Doit retourner false si le calendrier demandé n'existe pas
+// Retourne le texte HTML à afficher à l'utilisateur pour voir les resultats
+// du sondage demande; retourne false si le calendrier demande n'existe pas
 var getResults = function (sondageId) {
-    var sondage = getSondage(sondageId);
+    var sondage = obtenirSondage(sondageId);
     if(sondage == null)
         return false;
-    
+
     var codeHTML = readFile("template/results.html");
     codeHTML = remplacerTexte(sondage.data.titre, "{{titre}}", codeHTML);
-    codeHTML = remplacerTexte(createResultsTable(sondageId), 
+    codeHTML = remplacerTexte(creerCodeResultats(sondageId), 
                               "{{table}}", codeHTML);
     codeHTML = remplacerTexte("http://localhost:" + port + "/" + sondageId, 
                               "{{url}}", codeHTML);
-    codeHTML = remplacerTexte(createParticipantsHTML(sondageId), 
+    codeHTML = remplacerTexte(creerCodeLegende(sondageId), 
                               "{{legende}}", codeHTML);
     return codeHTML;
-    
 };
 
-//Construire html pour la liste de participants
-var createParticipantsHTML = function(sondageId){
+// Cree le code HTML afin d'afficher la liste de participants dans la legende
+var creerCodeLegende = function(sondageId){
     var participantsHTML = "";
     for (var i=0; i<listeParticipants.length; i++) {
         if (sondageId == listeParticipants[i].id){
@@ -380,41 +380,44 @@ var createParticipantsHTML = function(sondageId){
     return participantsHTML;
 };
 
-// Crée un sondage à partir des informations entrées
+// Cree un sondage a partir des informations entrees
 // Doit retourner false si les informations ne sont pas valides, ou
-// true si le sondage a été créé correctement.
-// ******DAVID 12/01 - TERMINEE******
+// true si le sondage a ete cree correctement.
 var creerSondage = function (titre, id, dateDebut, dateFin,
                              heureDebut, heureFin) {
-    
-    // le site https://www.w3schools.com/jsref/jsref_gettime.asp est la
-    // reference pour l'usage de la fonction Date() et de la methode .getTime() 
+
+    // Le site https://www.w3schools.com/jsref/jsref_gettime.asp est la
+    // reference pour l'usage de la fonction Date() et de la methode .getTime()
     var dateDebutNum = +new Date(dateDebut).getTime() / MILLIS_PAR_JOUR;
     var dateFinNum = +new Date(dateFin).getTime() / MILLIS_PAR_JOUR;
     var heuresValides = +heureDebut <= +heureFin;
     var datesValides = dateDebutNum <= dateFinNum;
     var maxJours =  (dateFinNum-dateDebutNum) <= 30;
 
-    //Bonus: 
-    //Figure 5: Message d’erreur de base pour les formulaires invalides
+    // Bonus:
+    // Figure 5: Message d’erreur de base pour les formulaires invalides
     if (!idValide(id)){
         return {exists: false, 
-                data: "Error: L'identifiant de sondage correspond à un sondage existant"};
+                data: "Erreur: L'identifiant de sondage correspond a un " +
+                "sondage existant"};
     }
-    
     if(!heuresValides) {
         return {exists: false,
-                data: "Error: L’heure de fin doit être après l’heure de début"};
+                data: "Erreur: L’heure de fin doit etre apres l’heure " +
+                "de debut."};
     }
     if(!datesValides) {
         return {exists: false,
-                data: "Error: Le jour de fin doit être après le jour de début"};
+                data: "Erreur: Le jour de fin doit etre apres le jour " +
+                "de debut."};
     } 
     if(!maxJours){
         return {exists: false,
-                data: "Error: La durée maximale d’un sondage est de 30 jours"};
-    } 
-    //new sondage object et garder dans la liste
+                data: "Erreur: La duree maximale d’un sondage est de " +
+                "30 jours."};
+    }
+
+    // Nouvel objet sondage integre dans la liste des sondages existants
     var sondage = {
             "titre": titre, 
             "id": id, 
@@ -423,27 +426,24 @@ var creerSondage = function (titre, id, dateDebut, dateFin,
             "heureDebut": parseInt(heureDebut), 
             "heureFin": parseInt(heureFin) 
         };
-    sondageList.push( {"id": id, "data": sondage});
+    listeSondagesExistants.push({"id": id, "data": sondage});
     return {exists: true, data: null};
-
 };
 
-//Pour obtenir le sondage vient de la liste
-//id: sondage id
-var getSondage = function(id){
-    if (sondageList.length == 0 || id === "undefined")
+// Verifie si l'identifiant d'un sondage n'est pas deja utilise
+var obtenirSondage = function(id){
+    if (listeSondagesExistants.length == 0 || id === "undefined")
         return null;
 
-    for(var i = 0; i < sondageList.length; i ++){
-        var element = sondageList[i];
+    for (var i=0; i<listeSondagesExistants.length; i++){
+        var element = listeSondagesExistants[i];
         if(element.id == id)
             return element;
     }
     return null;
 };
 
-//Fonction qui verifie que l'identifiant entre par l'utilisateur est bien valide
-// ******DAVID 12/01 - TERMINEE******
+// Fonction qui verifie que l'identifiant entre par l'utilisateur est valide
 var idValide = function (id) {
     for (var i=0; i<id.length; i++) {
         if (!(id.charCodeAt(i)==45
@@ -453,8 +453,8 @@ var idValide = function (id) {
                   return false;
         }
     }
-    //Pour eviter de creer le meme id dans la list
-    if(getSondage(id) == null)
+    // Pour eviter de recreer le meme id dans la liste de sondages existants
+    if(obtenirSondage(id) == null)
         return true;
 };
 
@@ -464,7 +464,7 @@ var idValide = function (id) {
 // Cette fonction ne retourne rien
 var ajouterParticipant = function (sondageId, nom, disponibilites) {
     var number = listeParticipants.length;
-    var couleur = genColor(number, number+1);
+    var couleur = genCouleur(number, number+1);
     listeParticipants.push({
                             "id":sondageId, 
                             "nom": nom, 
@@ -475,17 +475,12 @@ var ajouterParticipant = function (sondageId, nom, disponibilites) {
 
 // Génère la i ieme couleur parmi un nombre total `total` au format
 // hexadécimal HTML
-//
-// Notez que pour un grand nombre de couleurs (ex.: 250), générer
-// toutes les couleurs et les afficher devrait donner un joli dégradé qui
-// commence en rouge, qui passe par toutes les autres couleurs et qui
-// revient à rouge.
-var genColor = function(i, nbTotal) {
+var genCouleur = function(i, nbTotal) {
     var teinte = ( i / nbTotal ) * 360;
     var h = teinte /60;
-    var x = Math.floor(couleurMax * coefficientCouleur * 
-                            (1 - Math.abs( h % 2 - 1)));
-    
+    var x = Math.floor(couleurMax * coefficientCouleur *
+            (1 - Math.abs( h % 2 - 1)));
+
     var c = Math.floor(coefficientCouleur * couleurMax);
     var rgb = [];
     switch(Math.floor(h)){
@@ -511,14 +506,14 @@ var genColor = function(i, nbTotal) {
             rgb = [0,0,0];
             break;
     }
-    var couleur = "#" + componentToHex(rgb[0]) + 
-                        componentToHex(rgb[1]) + 
-                        componentToHex(rgb[2]);
+    var couleur = "#" + couleurHexa(rgb[0]) + 
+                        couleurHexa(rgb[1]) + 
+                        couleurHexa(rgb[2]);
     return couleur;
 };
 
-//Pour transformer couleur number a Hex
-function componentToHex(c) {
+// Transforme le numero de couleur en hexadecimal
+function couleurHexa(c) {
     var hex = c.toString(16);
     return hex.length == 1 ? "0" + hex : hex;
 };
